@@ -26,7 +26,7 @@
 #include "BluetoothEvent.hpp"
 #include "BluetoothManager.hpp"
 
-void BluetoothEvent::generic_callback(BluetoothObject &object, void *data)
+void BluetoothEvent::generic_callback(BluetoothObject &object, BluetoothEventType evt_type, void *data)
 {
 
    if (data == nullptr)
@@ -34,7 +34,12 @@ void BluetoothEvent::generic_callback(BluetoothObject &object, void *data)
 
    BluetoothConditionVariable *generic_data = static_cast<BluetoothConditionVariable *>(data);
 
-   generic_data->result = object.clone();
+   if(evt_type == BluetoothEventType::ADDED){
+        generic_data->result = object.clone();
+   }else{
+       /*should remove the object*/
+   }
+
    generic_data->notify();
 }
 
@@ -71,10 +76,10 @@ BluetoothEvent::BluetoothEvent(BluetoothType type, std::string *name,
     }
 }
 
-bool BluetoothEvent::execute_callback(BluetoothObject &object)
+bool BluetoothEvent::execute_callback(BluetoothObject &object, BluetoothEventType evt_type)
 {
     if (has_callback()) {
-        cb(object, data);
+        cb(object, evt_type, data);
         cv.notify();
         return execute_once;
     }

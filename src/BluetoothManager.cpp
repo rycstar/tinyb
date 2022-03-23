@@ -39,8 +39,9 @@ using namespace tinyb;
 
 class tinyb::BluetoothEventManager {
 public:
-    static void on_interface_added (GDBusObject *object,
-        GDBusInterface *interface, gpointer user_data) {
+
+    static void _on_interface_handle(GDBusObject *object,
+        GDBusInterface *interface, gpointer user_data, BluetoothEventType evt_type){
         GDBusInterfaceInfo *info = g_dbus_interface_get_info(interface);
         BluetoothType type = BluetoothType::NONE;
         BluetoothManager *manager = BluetoothManager::get_bluetooth_manager();
@@ -51,49 +52,73 @@ public:
 
         if(IS_GATT_SERVICE1_PROXY(interface)) {
             type = BluetoothType::GATT_SERVICE;
-            auto obj = new BluetoothGattService(GATT_SERVICE1(interface));
-            auto uuid = obj->get_uuid();
-            auto parent = obj->get_device();
-            manager->handle_event(type, nullptr, &uuid, &parent, *obj);
+            BluetoothGattService obj(GATT_SERVICE1(interface));
+            auto uuid = obj.get_uuid();
+            auto parent = obj.get_device();
+            manager->handle_event(type, nullptr, &uuid, &parent, obj, evt_type);
         }
         else if(IS_GATT_CHARACTERISTIC1_PROXY(interface)) {
             type = BluetoothType::GATT_CHARACTERISTIC;
-            auto obj = new BluetoothGattCharacteristic(GATT_CHARACTERISTIC1(interface));
-            auto uuid = obj->get_uuid();
-            auto parent = obj->get_service();
-            manager->handle_event(type, nullptr, &uuid, &parent, *obj);
+            BluetoothGattCharacteristic obj(GATT_CHARACTERISTIC1(interface));
+            auto uuid = obj.get_uuid();
+            auto parent = obj.get_service();
+            manager->handle_event(type, nullptr, &uuid, &parent, obj,evt_type);
         }
         else if(IS_GATT_DESCRIPTOR1_PROXY(interface)) {
             type = BluetoothType::GATT_DESCRIPTOR;
-            auto obj = new BluetoothGattDescriptor(GATT_DESCRIPTOR1(interface));
-            auto uuid = obj->get_uuid();
-            auto parent = obj->get_characteristic();
-            manager->handle_event(type, nullptr, &uuid, &parent, *obj);
+            BluetoothGattDescriptor obj(GATT_DESCRIPTOR1(interface));
+            auto uuid = obj.get_uuid();
+            auto parent = obj.get_characteristic();
+            manager->handle_event(type, nullptr, &uuid, &parent, obj,evt_type);
         }
         else if(IS_DEVICE1_PROXY(interface)) {
             type = BluetoothType::DEVICE;
-            auto obj = new BluetoothDevice(DEVICE1(interface));
-            auto name = obj->get_name();
-            auto uuid = obj->get_address();
-            auto parent = obj->get_adapter();
-            manager->handle_event(type, &name, &uuid, &parent, *obj);
+            BluetoothDevice obj(DEVICE1(interface));
+            auto name = obj.get_name();
+            auto uuid = obj.get_address();
+            auto parent = obj.get_adapter();
+            manager->handle_event(type, &name, &uuid, &parent, obj,evt_type);
         }
         else if(IS_ADAPTER1_PROXY(interface)) {
             type = BluetoothType::ADAPTER;
-            auto obj = new BluetoothAdapter(ADAPTER1(interface));
-            auto name = obj->get_name();
-            auto uuid = obj->get_address();
-            manager->handle_event(type, &name, &uuid, nullptr, *obj);
+            BluetoothAdapter obj(ADAPTER1(interface));
+            auto name = obj.get_name();
+            auto uuid = obj.get_address();
+            manager->handle_event(type, &name, &uuid, nullptr, obj, evt_type);
         }
+    }
+
+    static void on_interface_added (GDBusObject *object,
+        GDBusInterface *interface, gpointer user_data) {
+            _on_interface_handle(object, interface, user_data,BluetoothEventType::ADDED);
     }
 
     static void on_object_added (GDBusObjectManager *manager,
         GDBusObject *object, gpointer user_data) {
         GList *l, *interfaces = g_dbus_object_get_interfaces(object);
 
-        for(l = interfaces; l != NULL; l = l->next)
+        for(l = interfaces; l != NULL; l = l->next){
             on_interface_added(object, (GDBusInterface *)l->data, user_data);
+        }
+            
+        g_list_free_full(interfaces, g_object_unref);
+    }
 
+
+    static void on_interface_removed (GDBusObject *object,
+        GDBusInterface *interface, gpointer user_data){
+        _on_interface_handle(object, interface, user_data,BluetoothEventType::REMOVED);
+    }
+
+
+    static void on_object_removed (GDBusObjectManager *manager,
+        GDBusObject *object, gpointer user_data){
+        GList *l, *interfaces = g_dbus_object_get_interfaces(object);
+
+        for(l = interfaces; l != NULL; l = l->next){
+            on_interface_removed(object, (GDBusInterface *)l->data, user_data);
+        }
+            
         g_list_free_full(interfaces, g_object_unref);
     }
 };
@@ -203,8 +228,21 @@ std::weak_ptr<BluetoothEvent> BluetoothManager::find(BluetoothType type,
     return std::weak_ptr<BluetoothEvent>(event);
 }
 
+std::weak_ptr<BluetoothEvent> BluetoothManager::listen(BluetoothType type, std::string *name,
+    std::string* identifier, BluetoothObject *parent, BluetoothCallback cb,
+    void* data, bool execute_once,
+    std::chrono::milliseconds timeout)
+{
+
+    std::shared_ptr<BluetoothEvent> event(new BluetoothEvent(type, name,
+        identifier, parent,execute_once,cb,data));
+    add_event(event);
+    return std::weak_ptr<BluetoothEvent>(event);
+}
+
+
 void BluetoothManager::handle_event(BluetoothType type, std::string *name,
-    std::string *identifier, BluetoothObject *parent, BluetoothObject &object)
+    std::string *identifier, BluetoothObject *parent, BluetoothObject &object, BluetoothEventType evt_type)
 {
     for (auto it = event_list.begin();
         it != event_list.end();) {
@@ -228,7 +266,8 @@ void BluetoothManager::handle_event(BluetoothType type, std::string *name,
                 continue; /* this event does not match */
             }
         /* The event matches, execute and see if it needs to reexecute */
-        if ((*it)->execute_callback(object))
+
+        if ((*it)->execute_callback(object,evt_type))
             it = event_list.erase(it);
         else
             ++it;
@@ -241,17 +280,26 @@ static gpointer init_manager_thread(void *data)
     GDBusObjectManager *gdbus_manager = (GDBusObjectManager *) data;
 
     loop = g_main_loop_new(NULL, FALSE);
-
+    
     g_signal_connect(gdbus_manager,
-        "interface-added",
-         G_CALLBACK(BluetoothEventManager::on_interface_added),
-         NULL);
+    "interface-added",
+        G_CALLBACK(BluetoothEventManager::on_interface_added),
+        NULL);
 
     g_signal_connect(gdbus_manager,
         "object-added",
          G_CALLBACK(BluetoothEventManager::on_object_added),
          NULL);
 
+    g_signal_connect(gdbus_manager,
+        "interface-removed",
+         G_CALLBACK(BluetoothEventManager::on_interface_removed),
+         NULL);
+
+    g_signal_connect(gdbus_manager,
+        "object-removed",
+         G_CALLBACK(BluetoothEventManager::on_object_removed),
+         NULL);
     g_main_loop_run(loop);
     return NULL;
 }
@@ -294,7 +342,8 @@ BluetoothManager::BluetoothManager() : event_list()
     g_list_free_full(objects, g_object_unref);
 
     if (default_adapter == nullptr) {
-        throw BluetoothException("No adapter installed or not recognized by system");
+        std::cout << "No adapter installed or not recognized by system" << std::endl;
+        //throw BluetoothException("No adapter installed or not recognized by system");
     }
 }
 
@@ -371,9 +420,31 @@ bool BluetoothManager::set_default_adapter(BluetoothAdapter &adapter)
     return true;
 }
 
+bool BluetoothManager::set_default_adapter( std::unique_ptr<BluetoothAdapter> &adapter){
+    if(adapter != nullptr){
+        default_adapter = std::move(adapter);
+        return true;
+    }
+    return false;
+}
+
 std::unique_ptr<BluetoothAdapter> BluetoothManager::get_default_adapter()
 {
-    return std::unique_ptr<BluetoothAdapter>(default_adapter->clone());
+    if (default_adapter != nullptr){
+        return std::unique_ptr<BluetoothAdapter>(default_adapter->clone());
+    }else{
+        return nullptr;
+    }
+}
+
+bool BluetoothManager::set_powered(bool value){
+    if (default_adapter != nullptr){
+        default_adapter->set_powered(value);
+        return true;
+    }
+    else{
+        return false;
+    }
 }
 
 bool BluetoothManager::start_discovery()

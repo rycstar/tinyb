@@ -31,7 +31,18 @@
 
 using namespace tinyb;
 
-typedef std::function<void (BluetoothObject &, void *)> BluetoothCallback;
+namespace tinyb {
+    enum class BluetoothEventType {
+        NONE,
+        ADDED,
+        REMOVED,
+        INVALID,
+    };
+}
+
+
+
+typedef std::function<void (BluetoothObject &, BluetoothEventType, void *)> BluetoothCallback;
 
 class tinyb::BluetoothEvent {
 private:
@@ -102,7 +113,7 @@ class BluetoothConditionVariable {
 
 BluetoothConditionVariable cv;
 
-static void generic_callback(BluetoothObject &object, void *data);
+static void generic_callback(BluetoothObject &object,BluetoothEventType evt_type, void *data);
 public:
 
     BluetoothEvent(BluetoothType type, std::string *name, std::string *identifier,
@@ -126,7 +137,7 @@ public:
         return parent;
     }
 
-    bool execute_callback(BluetoothObject &object);
+    bool execute_callback(BluetoothObject &object, BluetoothEventType evt_type = BluetoothEventType::ADDED);
     bool has_callback() {
         return (cb != NULL);
     }
