@@ -25,12 +25,14 @@
 #pragma once
 #include "BluetoothObject.hpp"
 #include "BluetoothEvent.hpp"
+#include "BluetoothAgent.hpp"
 #include <vector>
 #include <list>
 
 class tinyb::BluetoothManager: public BluetoothObject
 {
 friend class BluetoothAdapter;
+friend class BluetoothAgent;
 friend class BluetoothDevice;
 friend class BluetoothGattService;
 friend class BluetoothGattCharacteristic;
@@ -39,6 +41,7 @@ friend class BluetoothEventManager;
 
 private:
     std::unique_ptr<BluetoothAdapter> default_adapter;
+    std::unique_ptr<BluetoothAgent> custom_agent;
     static BluetoothManager *bluetooth_manager;
     std::list<std::shared_ptr<BluetoothEvent>> event_list;
 
@@ -235,6 +238,12 @@ public:
     std::vector<std::unique_ptr<BluetoothDevice>> get_devices(
     );
 
+    /** Returns a agentmanager available in the system
+      * @return a BluetoothAgent available in the system
+      */
+    std::unique_ptr<BluetoothAgent> get_agentmanager(
+    );
+
     /** Returns a list of available BluetoothGattServices
       * @return A list of available BluetoothGattServices
       */
@@ -248,12 +257,20 @@ public:
         BluetoothAdapter &adapter
     );
 
+    /** init a agent_manager to use for discovery.
+      * @return TRUE if the device was set
+      */
+    bool init_custom_agent(
+    );
 
     bool set_default_adapter(
       std::unique_ptr<BluetoothAdapter> &adapter
     );
 
     std::unique_ptr<BluetoothAdapter> get_default_adapter();
+
+
+    bool register_custom_agent();
 
     /** set power status of the default adapter.
       * @return TRUE if discovery was successfully enabled

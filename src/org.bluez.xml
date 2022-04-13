@@ -76,6 +76,19 @@ THE SOFTWARE.
     <property name="ServicesResolved" type="b" access="read"/>
   </interface>
 
+  <interface name="org.bluez.AgentManager1">
+    <method name="RegisterAgent">
+      <arg name="agent" type="o" direction="in"/>
+      <arg name="capability" type="s" direction="in"/>
+    </method>
+    <method name="UnregisterAgent">
+      <arg name="agent" type="o" direction="in"/>
+    </method>
+    <method name="RequestDefaultAgent">
+      <arg name="agent" type="o" direction="in"/>
+    </method>
+  </interface>
+
   <interface name="org.bluez.GattService1">
     <property name="UUID" type="s" access="read"/>
     <property name="Device" type="o" access="read"/>

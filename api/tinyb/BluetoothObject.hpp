@@ -34,6 +34,7 @@ enum class BluetoothType {
     NONE,
     ADAPTER,
     DEVICE,
+    AGENT,
     GATT_SERVICE,
     GATT_CHARACTERISTIC,
     GATT_DESCRIPTOR

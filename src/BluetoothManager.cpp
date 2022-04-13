@@ -193,6 +193,10 @@ std::vector<std::unique_ptr<BluetoothObject>> BluetoothManager::get_objects(
         auto p_adapter = BluetoothAdapter::make(object, type, name, identifier, parent);
         if (p_adapter != nullptr)
             vector.push_back(std::move(p_adapter));
+
+        auto p_agent = BluetoothAgent::make(object, type, name, identifier, parent);
+        if (p_agent != nullptr)
+            vector.push_back(std::move(p_agent));
     }
     g_list_free_full(objects, g_object_unref);
     return vector;
@@ -397,6 +401,21 @@ std::vector<std::unique_ptr<BluetoothDevice>> BluetoothManager::get_devices()
     return vector;
 }
 
+std::unique_ptr<BluetoothAgent> BluetoothManager::get_agentmanager(){
+    std::unique_ptr<BluetoothAgent> agent;
+    GList *l, *objects = g_dbus_object_manager_get_objects(gdbus_manager);
+
+    for (l = objects; l != NULL; l = l->next) {
+        Object *object = OBJECT(l->data);
+
+        auto p = BluetoothAgent::make(object);
+        if (p != nullptr)
+            agent = std::move(p);
+    }
+    g_list_free_full(objects, g_object_unref);
+    return agent;
+}
+
 std::vector<std::unique_ptr<BluetoothGattService>> BluetoothManager::get_services()
 {
     std::vector<std::unique_ptr<BluetoothGattService>> vector;
@@ -420,12 +439,22 @@ bool BluetoothManager::set_default_adapter(BluetoothAdapter &adapter)
     return true;
 }
 
+bool BluetoothManager::init_custom_agent(){
+
+    if(custom_agent != nullptr){
+        return false;
+    }
+    custom_agent = std::move(get_agentmanager());
+    return true;
+}
+
 bool BluetoothManager::set_default_adapter( std::unique_ptr<BluetoothAdapter> &adapter){
     if(adapter != nullptr){
         default_adapter = std::move(adapter);
-        return true;
+    }else if(default_adapter != nullptr){
+        default_adapter.reset(nullptr);
     }
-    return false;
+    return true;
 }
 
 std::unique_ptr<BluetoothAdapter> BluetoothManager::get_default_adapter()
@@ -435,6 +464,13 @@ std::unique_ptr<BluetoothAdapter> BluetoothManager::get_default_adapter()
     }else{
         return nullptr;
     }
+}
+
+bool BluetoothManager::register_custom_agent(){
+    if (custom_agent != nullptr){
+        custom_agent->BluetoothAgentRegister();
+    }
+    return false;
 }
 
 bool BluetoothManager::set_powered(bool value){

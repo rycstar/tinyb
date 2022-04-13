@@ -15,6 +15,7 @@ set (tinyb_LIB_SRCS
   ${PROJECT_SOURCE_DIR}/src/BluetoothObject.cpp
   ${PROJECT_SOURCE_DIR}/src/BluetoothEvent.cpp
   ${PROJECT_SOURCE_DIR}/src/BluetoothManager.cpp
+  ${PROJECT_SOURCE_DIR}/src/BluetoothAgent.cpp
   ${PROJECT_SOURCE_DIR}/src/BluetoothAdapter.cpp
   ${PROJECT_SOURCE_DIR}/src/BluetoothDevice.cpp
   ${PROJECT_SOURCE_DIR}/src/BluetoothGattService.cpp
@@ -31,7 +32,7 @@ set (tinyb_LIB_GLOB_HEADERS
   ${PROJECT_SOURCE_DIR}/api/tinyb.hpp
 )
 
-add_library (tinyb SHARED ${tinyb_LIB_SRCS})
+add_library (tinyb STATIC ${tinyb_LIB_SRCS})
 target_link_libraries (
   tinyb
   ${CMAKE_THREAD_LIBS_INIT}

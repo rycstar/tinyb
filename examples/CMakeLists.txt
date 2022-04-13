@@ -10,6 +10,17 @@ set_target_properties(hellotinyb
     PROPERTIES
     CXX_STANDARD 11)
 
+add_executable (tb_cli tb_cli.cpp)
+set_target_properties(tb_cli
+    PROPERTIES
+    CXX_STANDARD 14)
+
+add_executable (helloedr helloedr.cpp)
+set_target_properties(helloedr
+    PROPERTIES
+    CXX_STANDARD 11)
+    
+
 add_executable (checkinit checkinit.cpp)
 set_target_properties(checkinit
     PROPERTIES
@@ -40,8 +51,13 @@ set_target_properties(list_mfg
     PROPERTIES
     CXX_STANDARD 11)
 
-include_directories(${PROJECT_SOURCE_DIR}/api)
+include_directories(${PROJECT_SOURCE_DIR}/api
+                    ${PROJECT_SOURCE_DIR}/cli-2.0.0/include
 
+)
+
+target_link_libraries (helloedr tinyb)
+target_link_libraries (tb_cli tinyb)
 target_link_libraries (hellotinyb tinyb)
 target_link_libraries (checkinit tinyb)
 target_link_libraries (asynctinyb tinyb)
